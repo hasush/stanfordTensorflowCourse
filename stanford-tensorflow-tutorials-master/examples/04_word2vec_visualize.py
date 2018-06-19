@@ -165,6 +165,44 @@ class SkipGramModel:
             saver_embed = tf.train.Saver([embedding_var])
             saver_embed.save(sess, os.path.join(visual_fld, 'model.ckpt'), 1)
 
+    def custom_visualize(self, visual_fld, num_visualize):
+        """ run "'tensorboard --logdir='visualization'" to see the embeddings """
+        
+        # create the list of num_variable most common words to visualize
+        word2vec_utils.most_common_words(visual_fld, num_visualize)
+
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            ckpt = tf.train.get_checkpoint_state(os.path.dirname('checkpoints/checkpoint'))
+
+            # if that checkpoint exists, restore from checkpoint
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+
+            final_embed_matrix = sess.run(self.embed_matrix)
+            
+            # you have to store embeddings in a new variable
+            embedding_var = tf.Variable(final_embed_matrix[:num_visualize], name='embedding')
+            sess.run(embedding_var.initializer)
+            print(embedding_var)
+
+
+        #     config = projector.ProjectorConfig()
+        #     summary_writer = tf.summary.FileWriter(visual_fld)
+
+        #     # add embedding to the config file
+        #     embedding = config.embeddings.add()
+        #     embedding.tensor_name = embedding_var.name
+            
+        #     # link this tensor to its metadata file, in this case the first NUM_VISUALIZE words of vocab
+        #     embedding.metadata_path = 'vocab_' + str(num_visualize) + '.tsv'
+
+        #     # saves a configuration file that TensorBoard will read during startup.
+        #     projector.visualize_embeddings(summary_writer, config)
+        #     saver_embed = tf.train.Saver([embedding_var])
+        #     saver_embed.save(sess, os.path.join(visual_fld, 'model.ckpt'), 1)
+
 def gen():
     yield from word2vec_utils.batch_gen(DOWNLOAD_URL, EXPECTED_BYTES, VOCAB_SIZE, 
                                         BATCH_SIZE, SKIP_WINDOW, VISUAL_FLD)
@@ -175,8 +213,9 @@ def main():
                                 (tf.TensorShape([BATCH_SIZE]), tf.TensorShape([BATCH_SIZE, 1])))
     model = SkipGramModel(dataset, VOCAB_SIZE, EMBED_SIZE, BATCH_SIZE, NUM_SAMPLED, LEARNING_RATE)
     model.build_graph()
-    model.train(NUM_TRAIN_STEPS)
-    model.visualize(VISUAL_FLD, NUM_VISUALIZE)
+    # model.train(NUM_TRAIN_STEPS)
+    # model.visualize(VISUAL_FLD, NUM_VISUALIZE)
+    model.custom_visualize(VISUAL_FLD, NUM_VISUALIZE)
 
 if __name__ == '__main__':
     main()
